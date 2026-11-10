@@ -1,4 +1,14 @@
-const SAMPLES_PER_SECOND = 100;
+let samplesPerSecond = 100;
+
+/**
+ * Sets the sampling rate used to convert samples to seconds. py-spy samples at 100 per second by default, Tachyon at
+ * 1000.
+ * @param rate - Samples per second.
+ */
+export function setSamplesPerSecond(rate: number) {
+    samplesPerSecond = rate;
+}
+
 /**
  * Converts a number of samples to a unit string.
  * @param samples - The number of samples.
@@ -17,5 +27,5 @@ export function toUnitString(samples: number, profileType: 'py-spy' | 'memray'):
         }
         return `${value % 1 === 0 ? Math.floor(value) : value.toFixed(1)}${units[index]}`;
     }
-    return `${samples / SAMPLES_PER_SECOND}s`;
+    return `${samples / samplesPerSecond}s`;
 }

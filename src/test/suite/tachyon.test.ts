@@ -63,3 +63,15 @@ describe('Tachyon collapsed output', () => {
         });
     });
 });
+
+describe('Tachyon sample units', () => {
+    it('uses the Tachyon rate to convert samples to seconds', () => {
+        const fg = new Flamegraph('tid:1;a.py:f:1 2000', undefined, 1000);
+        expect(fg.samplesPerSecond).to.equal(1000);
+    });
+
+    it('keeps the py-spy rate for py-spy profiles', () => {
+        const fg = new Flamegraph('f (a.py:1) 5', undefined, 1000);
+        expect(fg.samplesPerSecond).to.equal(100);
+    });
+});

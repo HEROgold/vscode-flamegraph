@@ -3,6 +3,7 @@ import { Flamenode, FlattenedFlamenode, Function } from './components/types';
 import { useState, useEffect } from 'react';
 import './tailwind.css';
 import { reconstructTreeFromFlattened, addParents, updateNodesWithSourceCode } from './utilities/flamegraphUtils';
+import { setSamplesPerSecond } from './utilities/units';
 
 declare global {
     interface Window {
@@ -27,14 +28,16 @@ export default function Home() {
             const message = event.data;
 
             if (message.type === 'profile-data') {
-                const { flattenedNodes, rootUid, focusUid, functions, sourceCode, profileType } = message.data as {
+                const { flattenedNodes, rootUid, focusUid, functions, sourceCode, profileType, samplesPerSecond } = message.data as {
                     flattenedNodes: FlattenedFlamenode[];
                     rootUid: number;
                     focusUid: number;
                     functions: Function[];
                     sourceCode: string[];
                     profileType: 'py-spy' | 'memray';
+                    samplesPerSecond?: number;
                 };
+                setSamplesPerSecond(samplesPerSecond ?? 100);
                 const { root, focusNode } = reconstructTreeFromFlattened(flattenedNodes || [], rootUid, focusUid);
 
                 addParents(root);

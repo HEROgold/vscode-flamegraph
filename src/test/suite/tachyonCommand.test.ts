@@ -1,5 +1,5 @@
 import { expect } from 'chai';
-import { buildTachyonCommand, chooseProfiler, supportsTachyon } from '../../utilities/tachyonCommand';
+import { buildTachyonCommand, chooseProfiler, parseSampleRate, supportsTachyon } from '../../utilities/tachyonCommand';
 
 const base = {
     pythonPath: 'C:/py/python.exe',
@@ -79,5 +79,23 @@ describe('chooseProfiler', () => {
     it('fails when Tachyon is forced on an old interpreter', () => {
         expect(chooseProfiler('tachyon', false)).to.equal(undefined);
         expect(chooseProfiler('tachyon', true)).to.equal('tachyon');
+    });
+});
+
+describe('parseSampleRate', () => {
+    it('uses Tachyon default of 1khz when unset', () => {
+        expect(parseSampleRate(undefined)).to.equal(1000);
+        expect(parseSampleRate('')).to.equal(1000);
+    });
+
+    it('reads plain numbers and units', () => {
+        expect(parseSampleRate('250')).to.equal(250);
+        expect(parseSampleRate('5khz')).to.equal(5000);
+        expect(parseSampleRate('10k')).to.equal(10000);
+        expect(parseSampleRate('500hz')).to.equal(500);
+    });
+
+    it('falls back to the default for junk', () => {
+        expect(parseSampleRate('fast')).to.equal(1000);
     });
 });

@@ -76,3 +76,18 @@ export function chooseProfiler(setting: ProfilerSetting, tachyonSupported: boole
     if (setting === 'tachyon') return tachyonSupported ? 'tachyon' : undefined;
     return tachyonSupported ? 'tachyon' : 'py-spy';
 }
+
+/** Tachyon's default sampling rate in samples per second. */
+export const TACHYON_DEFAULT_RATE = 1000;
+
+/**
+ * Converts a Tachyon rate such as `5khz`, `10k` or `250` to samples per second.
+ * @param rate - The rate as typed in the `flamegraph.tachyon.rate` setting.
+ * @returns Samples per second. Tachyon's default of 1000 is used for an empty or invalid rate.
+ */
+export function parseSampleRate(rate: string | undefined): number {
+    const match = rate?.trim().match(RATE_PATTERN);
+    if (!match) return TACHYON_DEFAULT_RATE;
+    const value = parseFloat(rate!);
+    return match[2] && match[2].toLowerCase().startsWith('k') ? value * 1000 : value;
+}

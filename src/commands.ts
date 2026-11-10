@@ -7,6 +7,7 @@ import {
     getPidAndCellFilenameMap,
     verify,
     resolveProfilerType,
+    getTachyonSamplesPerSecond,
 } from './utilities/fsUtils';
 import { FlamegraphPanel } from './flamegraphPanel';
 import { extensionState } from './state';
@@ -55,7 +56,11 @@ export function toggleProfileCommand() {
                 return;
             }
             if (!extensionState.currentFlamegraph) {
-                extensionState.currentFlamegraph = new Flamegraph(await readTextFile(profileUri));
+                extensionState.currentFlamegraph = new Flamegraph(
+                    await readTextFile(profileUri),
+                    undefined,
+                    getTachyonSamplesPerSecond()
+                );
             }
             extensionState.profileVisible = true;
         }
@@ -247,7 +252,11 @@ export function showFlamegraphCommand(context: vscode.ExtensionContext) {
             return;
         }
         if (!extensionState.currentFlamegraph) {
-            extensionState.currentFlamegraph = new Flamegraph(await readTextFile(profileUri));
+            extensionState.currentFlamegraph = new Flamegraph(
+                await readTextFile(profileUri),
+                undefined,
+                getTachyonSamplesPerSecond()
+            );
         }
         extensionState.profileVisible = true;
         extensionState.updateUI();

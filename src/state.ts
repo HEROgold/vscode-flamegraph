@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { Flamegraph } from './flamegraph';
 import { NotebookCellMap, UriToCodeMap } from './types';
 import { FlamegraphPanel } from './flamegraphPanel';
-import { readTextFile } from './utilities/fsUtils';
+import { readTextFile, getTachyonSamplesPerSecond } from './utilities/fsUtils';
 
 /**
  * Singleton class to manage the state of the VSCode extension
@@ -272,7 +272,11 @@ class ExtensionState {
      */
     public handleProfileUpdate = async (context: vscode.ExtensionContext, profileUri: vscode.Uri) => {
         try {
-            this.currentFlamegraph = new Flamegraph(await readTextFile(profileUri), this.filenameToJupyterCell);
+            this.currentFlamegraph = new Flamegraph(
+                await readTextFile(profileUri),
+                this.filenameToJupyterCell,
+                getTachyonSamplesPerSecond()
+            );
             this.profileUri = profileUri;
             this.focusNode = [0];
             this.profileVisible = true;

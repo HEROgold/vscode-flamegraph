@@ -9,7 +9,7 @@ import { Jupyter } from '@vscode/jupyter-extension';
 import { NotebookCellMap, UriToCodeMap } from '../types';
 import { toUnixPath } from './pathUtils';
 import { extensionState } from '../state';
-import { chooseProfiler, ProfilerSetting, supportsTachyon } from './tachyonCommand';
+import { chooseProfiler, parseSampleRate, ProfilerSetting, supportsTachyon } from './tachyonCommand';
 
 export const execAsync = promisify(exec);
 const execFileAsync = promisify(execFile);
@@ -854,4 +854,13 @@ export async function resolveProfilerType(): Promise<'py-spy' | 'tachyon' | unde
     }
     // The error message for an explicit "tachyon" setting comes from verify(), which names the interpreter version.
     return chooseProfiler(setting, supported) ?? 'tachyon';
+}
+
+/**
+ * Gets the Tachyon sampling rate from the `flamegraph.tachyon.rate` setting.
+ *
+ * @returns Samples per second.
+ */
+export function getTachyonSamplesPerSecond(): number {
+    return parseSampleRate(vscode.workspace.getConfiguration('flamegraph.tachyon').get<string>('rate', ''));
 }
