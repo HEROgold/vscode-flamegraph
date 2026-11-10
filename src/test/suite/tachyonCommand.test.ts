@@ -1,5 +1,5 @@
 import { expect } from 'chai';
-import { buildTachyonCommand, supportsTachyon } from '../../utilities/tachyonCommand';
+import { buildTachyonCommand, chooseProfiler, supportsTachyon } from '../../utilities/tachyonCommand';
 
 const base = {
     pythonPath: 'C:/py/python.exe',
@@ -63,5 +63,21 @@ describe('supportsTachyon', () => {
     it('rejects older versions and junk', () => {
         expect(supportsTachyon('3.14.4')).to.equal(false);
         expect(supportsTachyon('')).to.equal(false);
+    });
+});
+
+describe('chooseProfiler', () => {
+    it('keeps py-spy when selected', () => {
+        expect(chooseProfiler('py-spy', true)).to.equal('py-spy');
+    });
+
+    it('picks Tachyon on auto when supported', () => {
+        expect(chooseProfiler('auto', true)).to.equal('tachyon');
+        expect(chooseProfiler('auto', false)).to.equal('py-spy');
+    });
+
+    it('fails when Tachyon is forced on an old interpreter', () => {
+        expect(chooseProfiler('tachyon', false)).to.equal(undefined);
+        expect(chooseProfiler('tachyon', true)).to.equal('tachyon');
     });
 });

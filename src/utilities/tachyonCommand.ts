@@ -62,3 +62,17 @@ export function supportsTachyon(version: string): boolean {
     const minor = parseInt(match[2], 10);
     return major > 3 || (major === 3 && minor >= 15);
 }
+
+export type ProfilerSetting = 'py-spy' | 'tachyon' | 'auto';
+
+/**
+ * Picks the profiler for the `flamegraph.profiler` setting.
+ * @param setting - The value of the setting.
+ * @param tachyonSupported - Whether the selected interpreter is Python 3.15 or newer.
+ * @returns The profiler to use, or undefined when Tachyon was requested but is not supported.
+ */
+export function chooseProfiler(setting: ProfilerSetting, tachyonSupported: boolean): 'py-spy' | 'tachyon' | undefined {
+    if (setting === 'py-spy') return 'py-spy';
+    if (setting === 'tachyon') return tachyonSupported ? 'tachyon' : undefined;
+    return tachyonSupported ? 'tachyon' : 'py-spy';
+}

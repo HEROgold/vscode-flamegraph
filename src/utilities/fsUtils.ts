@@ -9,7 +9,7 @@ import { Jupyter } from '@vscode/jupyter-extension';
 import { NotebookCellMap, UriToCodeMap } from '../types';
 import { toUnixPath } from './pathUtils';
 import { extensionState } from '../state';
-import { supportsTachyon } from './tachyonCommand';
+import { chooseProfiler, ProfilerSetting, supportsTachyon } from './tachyonCommand';
 
 export const execAsync = promisify(exec);
 const execFileAsync = promisify(execFile);
@@ -663,6 +663,26 @@ export async function selectPid(): Promise<string | undefined> {
 }
 
 /**
+ * Checks that a Python interpreter is 3.15 or newer, which is needed for Tachyon.
+ * Shows an error message when it is not.
+ *
+ * @param pythonPath - The path to the Python interpreter.
+ * @returns True if the interpreter supports Tachyon.
+ */
+export async function verifyTachyonSupport(pythonPath: string): Promise<boolean> {
+    try {
+        const { stdout } = await execFileAsync(pythonPath, ['-c', 'import sys; print(sys.version.split()[0])']);
+        if (supportsTachyon(stdout)) return true;
+        vscode.window.showErrorMessage(
+            `Tachyon needs Python 3.15 or newer, but ${pythonPath} is ${stdout.trim()}. Select a newer interpreter or use py-spy.`
+        );
+    } catch {
+        vscode.window.showErrorMessage(`Could not run ${pythonPath} to check its version.`);
+    }
+    return false;
+}
+
+/**
  * Verifies the user's environment and returns the requested information.
  *
  * @param options - The options to verify.
@@ -673,7 +693,7 @@ export async function selectPid(): Promise<string | undefined> {
  * @param options.requirePid - Whether to require a process ID (PID).
  * @param options.fileUri - The file URI to verify.
  * @param options.pid - The process ID (PID) to verify.
- * @param options.profilerType - The type of profiler to use ('py-spy' or 'memray').
+ * @param options.profilerType - The type of profiler to use ('py-spy', 'tachyon' or 'memray').
  * @returns A promise that resolves to the requested information or false if verification fails.
  */
 export async function verify({
@@ -693,7 +713,7 @@ export async function verify({
     requirePid: boolean;
     fileUri?: vscode.Uri;
     pid?: string;
-    profilerType: 'py-spy' | 'memray';
+    profilerType: 'py-spy' | 'tachyon' | 'memray';
 }): Promise<
     | false
     | {
@@ -746,7 +766,7 @@ export async function verify({
 
     // Step 3: Verify that we have a Python interpreter
     let pythonPath: string | undefined;
-    if (requirePython) {
+    if (requirePython || profilerType === 'tachyon') {
         pythonPath = await getPythonPath();
         if (!pythonPath) {
             vscode.window.showErrorMessage('No Python interpreter selected. Please select a Python interpreter.');
@@ -756,14 +776,19 @@ export async function verify({
         pythonPath = (await getPythonPath()) || '';
     }
 
-    // Step 4: Verify that we have a profiler
-    const profilerPath = profilerType === 'memray' ? await getOrInstallMemray() : await getOrInstallPySpy();
+    // Step 4: Verify that we have a profiler. Tachyon ships with Python 3.15, so its "profiler" is the interpreter.
+    let profilerPath: string | undefined;
+    if (profilerType === 'tachyon') {
+        profilerPath = (await verifyTachyonSupport(pythonPath)) ? pythonPath : undefined;
+    } else {
+        profilerPath = profilerType === 'memray' ? await getOrInstallMemray() : await getOrInstallPySpy();
+    }
     if (!profilerPath) {
         return false;
     }
 
     // Step 5: Verify that we have sudo access
-    const sudoInstalled = await checkSudoInstalled();
+    const sudoInstalled = profilerType === 'tachyon' ? false : await checkSudoInstalled();
     let verifiedUseSudo = false;
     if (sudoInstalled) {
         if (profilerType === 'memray') {
@@ -808,21 +833,25 @@ export async function verify({
 }
 
 /**
- * Checks that a Python interpreter is 3.15 or newer, which is needed for Tachyon.
- * Shows an error message when it is not.
+ * Reads the `flamegraph.profiler` setting and the selected interpreter, and returns the profiler to use.
+ * Shows an error message when Tachyon is selected but the interpreter is older than Python 3.15.
  *
- * @param pythonPath - The path to the Python interpreter.
- * @returns True if the interpreter supports Tachyon.
+ * @returns 'py-spy' or 'tachyon', or undefined when the choice is invalid.
  */
-export async function verifyTachyonSupport(pythonPath: string): Promise<boolean> {
-    try {
-        const { stdout } = await execFileAsync(pythonPath, ['-c', 'import sys; print(sys.version.split()[0])']);
-        if (supportsTachyon(stdout)) return true;
-        vscode.window.showErrorMessage(
-            `Tachyon needs Python 3.15 or newer, but ${pythonPath} is ${stdout.trim()}. Select a newer interpreter or use py-spy.`
-        );
-    } catch {
-        vscode.window.showErrorMessage(`Could not run ${pythonPath} to check its version.`);
+export async function resolveProfilerType(): Promise<'py-spy' | 'tachyon' | undefined> {
+    const setting = vscode.workspace.getConfiguration('flamegraph').get<ProfilerSetting>('profiler', 'auto');
+    if (setting === 'py-spy') return 'py-spy';
+
+    const pythonPath = await getPythonPath();
+    let supported = false;
+    if (pythonPath) {
+        try {
+            const { stdout } = await execFileAsync(pythonPath, ['-c', 'import sys; print(sys.version.split()[0])']);
+            supported = supportsTachyon(stdout);
+        } catch {
+            supported = false;
+        }
     }
-    return false;
+    // The error message for an explicit "tachyon" setting comes from verify(), which names the interpreter version.
+    return chooseProfiler(setting, supported) ?? 'tachyon';
 }
