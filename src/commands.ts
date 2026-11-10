@@ -1,7 +1,14 @@
 import * as vscode from 'vscode';
 import { commands } from 'vscode';
 import * as os from 'os';
-import { selectProfileFile, readTextFile, getPidAndCellFilenameMap, verify } from './utilities/fsUtils';
+import {
+    selectProfileFile,
+    readTextFile,
+    getPidAndCellFilenameMap,
+    verify,
+    resolveProfilerType,
+    getTachyonSamplesPerSecond,
+} from './utilities/fsUtils';
 import { FlamegraphPanel } from './flamegraphPanel';
 import { extensionState } from './state';
 import { Flamegraph } from './flamegraph';
@@ -49,7 +56,11 @@ export function toggleProfileCommand() {
                 return;
             }
             if (!extensionState.currentFlamegraph) {
-                extensionState.currentFlamegraph = new Flamegraph(await readTextFile(profileUri));
+                extensionState.currentFlamegraph = new Flamegraph(
+                    await readTextFile(profileUri),
+                    undefined,
+                    getTachyonSamplesPerSecond()
+                );
             }
             extensionState.profileVisible = true;
         }
@@ -72,6 +83,9 @@ export function runProfilerCommand() {
             return;
         }
 
+        const profiler = await resolveProfilerType();
+        if (!profiler) return;
+
         const result = await verify({
             requireUri: true,
             requirePython: true,
@@ -79,7 +93,7 @@ export function runProfilerCommand() {
             ensurePasswordlessSudo: false,
             requirePid: false,
             fileUri: fileUri || vscode.window.activeTextEditor?.document.uri,
-            profilerType: 'py-spy',
+            profilerType: profiler,
         });
         if (!result) return;
 
@@ -88,6 +102,7 @@ export function runProfilerCommand() {
         const task = createProfileTask(workspaceFolder, {
             type: 'flamegraph',
             file: uri!.fsPath,
+            profiler,
             pythonPath,
             profilerPath,
             sudo: useSudo,
@@ -103,6 +118,9 @@ export function runProfilerCommand() {
  */
 export function runPytestFileCommand() {
     return vscode.commands.registerCommand('flamegraph.runPytestFile', async (fileUri?: vscode.Uri) => {
+        const profiler = await resolveProfilerType();
+        if (!profiler) return;
+
         const result = await verify({
             requireUri: true,
             requirePython: true,
@@ -110,7 +128,7 @@ export function runPytestFileCommand() {
             ensurePasswordlessSudo: false,
             requirePid: false,
             fileUri: fileUri || vscode.window.activeTextEditor?.document.uri,
-            profilerType: 'py-spy',
+            profilerType: profiler,
         });
         if (!result) return;
 
@@ -118,6 +136,7 @@ export function runPytestFileCommand() {
 
         const task = createProfileTask(workspaceFolder, {
             type: 'flamegraph',
+            profiler,
             pythonPath,
             profilerPath,
             sudo: useSudo,
@@ -134,13 +153,16 @@ export function runPytestFileCommand() {
  */
 export function runAllPytestsCommand() {
     return vscode.commands.registerCommand('flamegraph.runAllPytests', async () => {
+        const profiler = await resolveProfilerType();
+        if (!profiler) return;
+
         const result = await verify({
             requireUri: false,
             requirePython: true,
             useSudo: IS_MACOS,
             ensurePasswordlessSudo: false,
             requirePid: false,
-            profilerType: 'py-spy',
+            profilerType: profiler,
         });
         if (!result) return;
 
@@ -148,6 +170,7 @@ export function runAllPytestsCommand() {
 
         const task = createProfileTask(workspaceFolder, {
             type: 'flamegraph',
+            profiler,
             pythonPath,
             profilerPath,
             sudo: useSudo,
@@ -171,6 +194,9 @@ export async function attach(
     requireSudoAccess: boolean = false,
     silent: boolean = false
 ): Promise<boolean> {
+    const profiler = await resolveProfilerType();
+    if (!profiler) return false;
+
     const result = await verify({
         requireUri: false,
         requirePython: false,
@@ -178,16 +204,18 @@ export async function attach(
         ensurePasswordlessSudo: requireSudoAccess,
         requirePid: true,
         pid,
-        profilerType: 'py-spy',
+        profilerType: profiler,
     });
     if (!result) return false;
 
-    const { pid: verifiedPid, profilerPath, workspaceFolder, useSudo } = result;
+    const { pid: verifiedPid, pythonPath, profilerPath, workspaceFolder, useSudo } = result;
 
     const task = createProfileTask(
         workspaceFolder,
         {
             type: 'flamegraph',
+            profiler,
+            pythonPath: profiler === 'tachyon' ? pythonPath : undefined,
             profilerPath,
             pid: verifiedPid,
             sudo: useSudo,
@@ -224,7 +252,11 @@ export function showFlamegraphCommand(context: vscode.ExtensionContext) {
             return;
         }
         if (!extensionState.currentFlamegraph) {
-            extensionState.currentFlamegraph = new Flamegraph(await readTextFile(profileUri));
+            extensionState.currentFlamegraph = new Flamegraph(
+                await readTextFile(profileUri),
+                undefined,
+                getTachyonSamplesPerSecond()
+            );
         }
         extensionState.profileVisible = true;
         extensionState.updateUI();

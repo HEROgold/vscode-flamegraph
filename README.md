@@ -23,6 +23,29 @@ Additionally, on Linux, macOS, and within WSL or Docker containers, basic memory
 
 ![Profile python script with memray](https://github.com/rafaelha/vscode-flamegraph/blob/d65a08926137a2e7b8a01cd120f61482cc5c423d/assets/screenshot-memray.png?raw=true)
 
+## Tachyon (Python 3.15 and later)
+
+Python 3.15 ships a built-in sampling profiler called Tachyon (`python -m profiling.sampling`). The extension can use it instead of py-spy. Set `flamegraph.profiler` to choose:
+
+| Value | Behavior |
+| --- | --- |
+| `auto` (default) | Tachyon when the selected interpreter is Python 3.15 or newer, py-spy otherwise |
+| `py-spy` | Always py-spy |
+| `tachyon` | Always Tachyon. Shows an error when the interpreter is older than 3.15 |
+
+Tachyon is used to profile a file, run pytest and attach to a process. The top view and `native` stacks stay py-spy only. Related settings:
+
+- `flamegraph.tachyon.mode`: `cpu` (default), `wall`, `gil` or `exception`.
+- `flamegraph.tachyon.rate`: for example `5khz`. Empty uses Tachyon's default of 1khz.
+- `flamegraph.tachyon.allThreads`: sample all threads, merged into one flamegraph (default on).
+- `flamegraph.tachyon.subprocesses` and `flamegraph.tachyon.subprocessesAttach`.
+
+To load a Tachyon profile recorded by hand, save the collapsed output as `profile.pyspy`:
+
+```
+python -m profiling.sampling run --collapsed -o profile.pyspy my_script.py
+```
+
 ## Usage
 
 The extension visualizes profiling data in two ways:

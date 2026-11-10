@@ -3,6 +3,7 @@ import * as path from 'path';
 import * as os from 'os';
 import { getPythonPath, getPyspyPath } from './utilities/fsUtils';
 import { escapeSpaces } from './utilities/pathUtils';
+import { buildTachyonCommand, TachyonMode } from './utilities/tachyonCommand';
 
 export const PROFILE_FILENAME = 'profile.pyspy';
 export const MEMRAY_PROFILE_FILENAME = 'profile.memray';
@@ -18,6 +19,11 @@ export interface FlamegraphTaskDefinition extends vscode.TaskDefinition {
      * The type of the task (should be 'flamegraph')
      */
     type: 'flamegraph';
+
+    /**
+     * The profiler to use. Defaults to py-spy. Tachyon needs Python 3.15 or newer and only supports `record`.
+     */
+    profiler?: 'py-spy' | 'tachyon';
 
     /**
      * The mode of the task (should be 'record' or 'top')
@@ -124,6 +130,70 @@ export interface FlamegraphMemrayTaskDefinition extends vscode.TaskDefinition {
 }
 
 /**
+ * Creates a profiling task that runs Python's built-in sampling profiler (Tachyon, Python 3.15 and later).
+ * The output is written to the same profile file as py-spy.
+ *
+ * @param workspaceFolder - The workspace folder to run the task in
+ * @param definition - The task definition
+ * @param name - The name of the task
+ * @param silent - Whether to run the task silently
+ * @param pythonPath - The path to a Python 3.15 interpreter, used when the definition has none
+ * @returns The Tachyon profiling task
+ */
+function createTachyonProfileTask(
+    workspaceFolder: vscode.WorkspaceFolder,
+    definition: FlamegraphTaskDefinition,
+    name: string,
+    silent: boolean,
+    pythonPath: string | undefined
+): vscode.Task {
+    const resolvedPython = definition.pythonPath || pythonPath;
+    if (!resolvedPython) throw new Error('Tachyon needs a Python 3.15 interpreter.');
+    if (definition.mode === 'top') throw new Error('Tachyon does not support the top view. Use py-spy.');
+
+    const config = vscode.workspace.getConfiguration('flamegraph.tachyon');
+    const subprocesses = definition.pid
+        ? definition.subprocesses || config.get<boolean>('subprocessesAttach', true)
+        : definition.subprocesses || config.get<boolean>('subprocesses', true);
+
+    const command = escapeSpaces(
+        buildTachyonCommand({
+            pythonPath: resolvedPython,
+            outputFile: PROFILE_FILENAME,
+            mode: config.get<TachyonMode>('mode', 'cpu'),
+            rate: config.get<string>('rate', '') || undefined,
+            subprocesses,
+            allThreads: config.get<boolean>('allThreads', true),
+            ampersand: os.platform() === 'win32' ? '& ' : '',
+            file: definition.file,
+            args: definition.args,
+            pid: definition.pid,
+        })
+    );
+
+    const task = new vscode.Task(
+        definition,
+        workspaceFolder,
+        name,
+        'Flamegraph',
+        new vscode.ShellExecution(command, {
+            executable: os.platform() === 'win32' ? 'powershell.exe' : undefined,
+        }),
+        []
+    );
+
+    if (silent) {
+        task.presentationOptions = {
+            reveal: vscode.TaskRevealKind.Never,
+            panel: vscode.TaskPanelKind.Shared,
+            clear: false,
+        };
+    }
+
+    return task;
+}
+
+/**
  * Creates a profiling task based on the task definition
  *
  * @param workspaceFolder - The workspace folder to run the task in
@@ -142,6 +212,9 @@ export function createProfileTask(
     pythonPath: string | undefined = undefined,
     profilerPath: string | undefined = undefined
 ): vscode.Task {
+    if (definition.profiler === 'tachyon') {
+        return createTachyonProfileTask(workspaceFolder, definition, name, silent, pythonPath);
+    }
     const config = vscode.workspace.getConfiguration('flamegraph.py-spy');
     let command = '';
 

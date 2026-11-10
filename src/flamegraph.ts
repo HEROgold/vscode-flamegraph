@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import { basename, isAbsolute } from 'path';
 import { URI } from './utilities/uri';
 import { strToHue } from './utilities/colors';
+import { isTachyonProfile, tachyonRowToPyspyRow } from './utilities/tachyon';
 import { getModuleName, toUnixPath, splitOutsideQuotes } from './utilities/pathUtils';
 import {
     FrameId,
@@ -29,13 +30,16 @@ export class Flamegraph {
 
     public index: FileIndex; // index of the flamegraph, used for efficient lookup of profile data for a single file
 
-    public profileType: 'py-spy' | 'memray' = 'py-spy';
+    public profileType: 'py-spy' | 'memray' | 'tachyon' = 'py-spy';
+
+    public samplesPerSecond = 100; // py-spy's default rate. Tachyon sets it from the `rate` argument.
 
     /**
      * Constructor for the Flamegraph class.
      * @param data - The profile data to be parsed. This should be the raw output of py-spy as a string.
+     * @param tachyonSamplesPerSecond - The sampling rate of a Tachyon profile, used to convert samples to seconds.
      */
-    constructor(data: string, filenameToJupyterCell?: NotebookCellMap) {
+    constructor(data: string, filenameToJupyterCell?: NotebookCellMap, tachyonSamplesPerSecond?: number) {
         this.functions = [{ functionName: 'all', moduleHue: 240, functionHue: 240 }];
         this.frameCache = new Map();
         this.functionCache = new Map();
@@ -53,6 +57,7 @@ export class Flamegraph {
         this.nodes.push(this.root);
 
         this.parseFlamegraph(data, filenameToJupyterCell);
+        if (this.profileType === 'tachyon' && tachyonSamplesPerSecond) this.samplesPerSecond = tachyonSamplesPerSecond;
         this.assignEulerTimes(this.root);
         this.buildIndex();
     }
@@ -176,6 +181,14 @@ export class Flamegraph {
         if (rows[0].includes('allocator,num_allocations,size,tid,thread_name,stack_trace')) {
             this.profileType = 'memray';
             rows.shift();
+        } else if (isTachyonProfile(rows[0])) {
+            this.profileType = 'tachyon';
+            const converted: string[] = [];
+            for (const row of rows) {
+                const pyspyRow = tachyonRowToPyspyRow(row);
+                if (pyspyRow) converted.push(pyspyRow);
+            }
+            rows.splice(0, rows.length, ...converted);
         } else {
             this.profileType = 'py-spy';
         }

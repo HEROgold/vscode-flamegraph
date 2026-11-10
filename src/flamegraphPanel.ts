@@ -105,7 +105,8 @@ export class FlamegraphPanel {
                     focusUid: extensionState.focusNode.length === 1 ? extensionState.focusNode[0] : flamegraph.root.uid,
                     functions: flamegraph.functions,
                     sourceCode: extensionState.sourceCode,
-                    profileType: flamegraph.profileType,
+                    profileType: flamegraph.profileType === 'memray' ? 'memray' : 'py-spy',
+                    samplesPerSecond: flamegraph.samplesPerSecond,
                 },
             });
         }
