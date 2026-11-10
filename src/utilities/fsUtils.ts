@@ -4,13 +4,15 @@ import * as os from 'os';
 import { PythonExtension } from '@vscode/python-extension';
 import { Uri, Webview } from 'vscode';
 import { promisify } from 'util';
-import { exec, spawn } from 'child_process';
+import { exec, execFile, spawn } from 'child_process';
 import { Jupyter } from '@vscode/jupyter-extension';
 import { NotebookCellMap, UriToCodeMap } from '../types';
 import { toUnixPath } from './pathUtils';
 import { extensionState } from '../state';
+import { supportsTachyon } from './tachyonCommand';
 
 export const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
 /**
  *
  * A helper function which will get the webview URI of a given file or resource.
@@ -803,4 +805,24 @@ export async function verify({
         pid,
         useSudo: verifiedUseSudo,
     };
+}
+
+/**
+ * Checks that a Python interpreter is 3.15 or newer, which is needed for Tachyon.
+ * Shows an error message when it is not.
+ *
+ * @param pythonPath - The path to the Python interpreter.
+ * @returns True if the interpreter supports Tachyon.
+ */
+export async function verifyTachyonSupport(pythonPath: string): Promise<boolean> {
+    try {
+        const { stdout } = await execFileAsync(pythonPath, ['-c', 'import sys; print(sys.version.split()[0])']);
+        if (supportsTachyon(stdout)) return true;
+        vscode.window.showErrorMessage(
+            `Tachyon needs Python 3.15 or newer, but ${pythonPath} is ${stdout.trim()}. Select a newer interpreter or use py-spy.`
+        );
+    } catch {
+        vscode.window.showErrorMessage(`Could not run ${pythonPath} to check its version.`);
+    }
+    return false;
 }

@@ -174,6 +174,37 @@
                     "description": "Include stack traces for idle threads.",
                     "scope": "resource"
                 },
+                "flamegraph.tachyon.mode": {
+                    "type": "string",
+                    "enum": ["cpu", "wall", "gil", "exception"],
+                    "default": "cpu",
+                    "description": "What Tachyon (Python 3.15 and later) samples. cpu skips idle threads, wall samples all time, gil samples threads holding the GIL, exception samples threads handling an exception.",
+                    "scope": "resource"
+                },
+                "flamegraph.tachyon.rate": {
+                    "type": "string",
+                    "default": "",
+                    "markdownDescription": "Tachyon sampling rate, for example `1000`, `5khz` or `10k`. Leave empty to use Tachyon's default (1khz).",
+                    "scope": "resource"
+                },
+                "flamegraph.tachyon.allThreads": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Sample all threads. Tachyon samples only the main thread by default. The flamegraph merges all threads.",
+                    "scope": "resource"
+                },
+                "flamegraph.tachyon.subprocesses": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Profile subprocesses spawned by the profiled script.",
+                    "scope": "resource"
+                },
+                "flamegraph.tachyon.subprocessesAttach": {
+                    "type": "boolean",
+                    "default": true,
+                    "description": "Profile subprocesses of the process that Tachyon attaches to.",
+                    "scope": "resource"
+                },
                 "flamegraph.py-spy.nonblocking": {
                     "type": "boolean",
                     "default": false,
