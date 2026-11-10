@@ -23,6 +23,18 @@ Additionally, on Linux, macOS, and within WSL or Docker containers, basic memory
 
 ![Profile python script with memray](https://github.com/rafaelha/vscode-flamegraph/blob/d65a08926137a2e7b8a01cd120f61482cc5c423d/assets/screenshot-memray.png?raw=true)
 
+## Install this fork
+
+This fork adds Tachyon support and is published as `herogold.vscode-flamegraph-tachyon`, so it can sit next to the Marketplace extension. Uninstall or disable the original first, because both register the same `flamegraph.*` commands and settings.
+
+```
+npm ci
+npm run install:all
+npm run build:webview
+npx @vscode/vsce package --out dist-vsix/
+code --install-extension dist-vsix/vscode-flamegraph-tachyon-<version>.vsix
+```
+
 ## Tachyon (Python 3.15 and later)
 
 Python 3.15 ships a built-in sampling profiler called Tachyon (`python -m profiling.sampling`). The extension can use it instead of py-spy. Set `flamegraph.profiler` to choose:

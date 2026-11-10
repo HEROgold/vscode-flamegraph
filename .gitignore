@@ -25,3 +25,4 @@ src/ui-test/resources/test-project/.venv
 *__pycache__*
 profile.pyspy
 profile.memray
+dist-vsix/
