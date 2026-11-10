@@ -1,0 +1,2 @@
+tid:27992;<frozen runpy>:_run_module_as_main:201;<frozen runpy>:_run_code:87;tachyon_sample.py:<module>:10;tachyon_sample.py:outer:9;tachyon_sample.py:inner:5 642
+tid:27992;<frozen runpy>:_run_module_as_main:201;<frozen runpy>:_run_code:87;tachyon_sample.py:<module>:10;tachyon_sample.py:outer:9;tachyon_sample.py:inner:4 150
