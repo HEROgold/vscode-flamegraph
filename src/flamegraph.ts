@@ -2,6 +2,7 @@ import * as fs from 'fs';
 import { basename, isAbsolute } from 'path';
 import { URI } from './utilities/uri';
 import { strToHue } from './utilities/colors';
+import { isTachyonProfile, tachyonRowToPyspyRow } from './utilities/tachyon';
 import { getModuleName, toUnixPath, splitOutsideQuotes } from './utilities/pathUtils';
 import {
     FrameId,
@@ -29,7 +30,7 @@ export class Flamegraph {
 
     public index: FileIndex; // index of the flamegraph, used for efficient lookup of profile data for a single file
 
-    public profileType: 'py-spy' | 'memray' = 'py-spy';
+    public profileType: 'py-spy' | 'memray' | 'tachyon' = 'py-spy';
 
     /**
      * Constructor for the Flamegraph class.
@@ -176,6 +177,14 @@ export class Flamegraph {
         if (rows[0].includes('allocator,num_allocations,size,tid,thread_name,stack_trace')) {
             this.profileType = 'memray';
             rows.shift();
+        } else if (isTachyonProfile(rows[0])) {
+            this.profileType = 'tachyon';
+            const converted: string[] = [];
+            for (const row of rows) {
+                const pyspyRow = tachyonRowToPyspyRow(row);
+                if (pyspyRow) converted.push(pyspyRow);
+            }
+            rows.splice(0, rows.length, ...converted);
         } else {
             this.profileType = 'py-spy';
         }

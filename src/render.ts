@@ -43,7 +43,7 @@ function getCurrentTheme(): 'dark' | 'light' {
  * @param profileType - The type of profile.
  * @returns The unit string.
  */
-function toUnitString(samples: number, profileType: 'py-spy' | 'memray'): string {
+function toUnitString(samples: number, profileType: 'py-spy' | 'memray' | 'tachyon'): string {
     if (profileType === 'memray') {
         // convert bits to B, MB, GB, TB
         const units = ['B', 'kB', 'MB', 'GB', 'TB'];
